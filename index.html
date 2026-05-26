@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>供应链供应商管理系统</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 顶部导航栏 -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+        <h1>供应链供应商管理</h1>
+      </div>
+      <span class="supplier-count" id="supplierCount">0 家供应商</span>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-primary" id="btnAddSupplier">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        添加供应商
+      </button>
+      <button class="btn btn-outline" id="btnExportCSV" title="导出 CSV">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        导出 CSV
+      </button>
+    </div>
+  </header>
+
+  <!-- 多条件动态筛选栏 -->
+  <section class="filter-bar">
+    <div class="filter-group">
+      <div class="filter-item">
+        <label>关键词搜索</label>
+        <div class="search-wrapper">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="filterKeyword" placeholder="搜索供应商名称、联系人...">
+        </div>
+      </div>
+      <div class="filter-item">
+        <label>品类标签</label>
+        <select id="filterCategory">
+          <option value="">全部品类</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>合作渠道</label>
+        <select id="filterChannel">
+          <option value="">全部渠道</option>
+        </select>
+      </div>
+      <div class="filter-item filter-price">
+        <label>单价区间 (¥)</label>
+        <div class="price-range">
+          <input type="number" id="filterPriceMin" placeholder="最低价" min="0">
+          <span class="price-separator">—</span>
+          <input type="number" id="filterPriceMax" placeholder="最高价" min="0">
+        </div>
+      </div>
+      <div class="filter-item">
+        <label>最低评级</label>
+        <select id="filterRating">
+          <option value="">不限</option>
+          <option value="1">★ 较差及以上</option>
+          <option value="2">★★ 一般及以上</option>
+          <option value="3">★★★ 合格及以上</option>
+          <option value="4">★★★★ 良好及以上</option>
+          <option value="5">★★★★★ 仅优秀</option>
+        </select>
+      </div>
+      <div class="filter-item filter-actions">
+        <button class="btn btn-ghost" id="btnResetFilter">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          重置
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 供应商列表 -->
+  <main class="supplier-list" id="supplierList">
+    <!-- 动态渲染 -->
+  </main>
+
+  <!-- 空状态 -->
+  <div class="empty-state" id="emptyState" style="display:none;">
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.3">
+      <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+    </svg>
+    <p>暂无供应商数据</p>
+    <span>点击右上角「添加供应商」开始录入</span>
+  </div>
+
+  <!-- 添加/编辑供应商模态框 -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">添加供应商</h2>
+        <button class="modal-close" id="btnModalClose">&times;</button>
+      </div>
+      <form id="supplierForm" class="modal-body">
+        <input type="hidden" id="formId">
+
+        <div class="form-section">
+          <h3 class="section-title">基本信息</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="formName">供应商名称 <span class="required">*</span></label>
+              <input type="text" id="formName" required placeholder="请输入供应商名称">
+            </div>
+            <div class="form-group">
+              <label for="formContact">联系人 <span class="required">*</span></label>
+              <input type="text" id="formContact" required placeholder="请输入联系人姓名">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="formPhone">联系电话</label>
+              <input type="text" id="formPhone" placeholder="手机或座机号码">
+            </div>
+            <div class="form-group">
+              <label for="formEmail">邮箱</label>
+              <input type="email" id="formEmail" placeholder="电子邮箱地址">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="formWechat">微信</label>
+              <input type="text" id="formWechat" placeholder="微信号">
+            </div>
+            <div class="form-group">
+              <label for="formCategory">品类标签 <span class="required">*</span></label>
+              <input type="text" id="formCategory" required placeholder="如：电子元器件、包装材料">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3 class="section-title">合作信息</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="formChannel">合作渠道</label>
+              <input type="text" id="formChannel" placeholder="如：1688、展会、线上直采">
+            </div>
+            <div class="form-group">
+              <label for="formSampleCycle">打样周期</label>
+              <input type="text" id="formSampleCycle" placeholder="如：7-10 个工作日">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3 class="section-title">资质信息</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="formCompanyName">公司名称</label>
+              <input type="text" id="formCompanyName" placeholder="营业执照上的公司全称">
+            </div>
+            <div class="form-group">
+              <label for="formBusinessLicense">营业执照号</label>
+              <input type="text" id="formBusinessLicense" placeholder="统一社会信用代码">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="formTaxNumber">税号</label>
+              <input type="text" id="formTaxNumber" placeholder="纳税人识别号">
+            </div>
+            <div class="form-group">
+              <label for="formBankName">开户行</label>
+              <input type="text" id="formBankName" placeholder="如：中国工商银行XX支行">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="formBankAccount">银行账号</label>
+              <input type="text" id="formBankAccount" placeholder="对公银行账号">
+            </div>
+            <div class="form-group">
+              <label for="formRegisteredAddress">注册地址</label>
+              <input type="text" id="formRegisteredAddress" placeholder="营业执照注册地址">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3 class="section-title">供应商评级 <span class="rating-summary" id="ratingSummary">综合评分：—</span></h3>
+          <div class="rating-panel" id="ratingPanel">
+            
+            <!-- 维度一：前期选型合作适配 -->
+            <div class="rating-dimension">
+              <div class="dimension-header" data-dimension="selection">
+                <span class="dimension-icon">📋</span>
+                <span class="dimension-name">前期选型合作适配</span>
+                <span class="dimension-score" id="score_selection">—</span>
+                <span class="dimension-toggle">▼</span>
+              </div>
+              <div class="dimension-body">
+                <div class="rating-item">
+                  <div class="rating-label">
+                    <span class="item-name">沟通协作效率</span>
+                    <span class="item-desc">对接响应速度、表达理解度、需求对齐能力、跨事项配合态度</span>
+                  </div>
+                  <div class="star-rating" data-field="communication">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                  </div>
+                </div>
+                <div class="rating-item">
+                  <div class="rating-label">
+                    <span class="item-name">样品试样配合度</span>
+                    <span class="item-desc">打样周期、改样响应、按需调整能力、试样合格率、反复配合意愿</span>
+                  </div>
+                  <div class="star-rating" data-field="sample">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                  </div>
+                </div>
+                <div class="rating-item">
+                  <div class="rating-label">
+                    <span class="item-name">过往合作案例</span>
+                    <span class="item-desc">同品类服务经验、标杆客户履历、项目落地成果、行业口碑背书</span>
+                  </div>
+                  <div class="star-rating" data-field="trackRecord">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                  </div>
+                </div>
+                <div class="rating-item">
+                  <div class="rating-label">
+                    <span class="item-name">商务契合度</span>
+                    <span class="item-desc">合作理念匹配、合作模式灵活度、条款协商包容性、履约诚意</span>
+                  </div>
+                  <div class="star-rating" data-field="businessFit">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                  </div>
+                </div>
+                <div class="rating-item">
+                  <div class="rating-label">
+                    <span class="item-name">地域与对接便利性</span>
+                    <span class="item-desc">地理距离、上门踏勘、现场对接、物流通勤便捷性</span>
+                  </div>
+                  <div class="star-rating" data-field="location">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 维度二：产品核心实力 -->
+            <div class="rating-dimension">
+              <div class="dimension-header" data-dimension="product">
+                <span class="dimension-icon">⚙️</span>
+                <span class="dimension-name">产品核心实力</span>
+                <span class="dimension-score" id="score_product">—</span>
+                <span class="dimension-toggle">▼</span>
+              </div>
+              <div class="dimension-body">
+                <div class="rating-item">
+                  <div class="rating-label">
+                    <span class="item-name">品质管控水平</span>
+                    <span class="item-desc">来料/制程/出厂检验标准、次品率、质量稳定性、异常整改能力</span>
+                  </div>
+                  <div class="star-rating" data-field="quality">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                  </div>
+                </div>
+                <div class="rating-item">
+                  <div class="rating-label">
+                    <span class="item-name">工艺技术能力</span>
+                    <span class="item-desc">现有工艺水准、定制开发、技术迭代、适配定制化需求能力</span>
+                  </div>
+                  <div class="star-rating" data-field="technology">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 维度三：商务成本 -->
+            <div class="rating-dimension">
+              <div class="dimension-header" data-dimension="cost">
+                <span class="dimension-icon">💰</span>
+                <span class="dimension-name">商务成本</span>
+                <span class="dimension-score" id="score_cost">—</span>
+                <span class="dimension-toggle">▼</span>
+              </div>
+              <div class="dimension-body">
+                <div class="rating-item">
+                  <div class="rating-label">
+                    <span class="item-name">报价性价比</span>
+                    <span class="item-desc">定价合理性、横向比价优势、调价机制、综合采购总成本</span>
+                  </div>
+                  <div class="star-rating" data-field="pricing">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                  </div>
+                </div>
+                <div class="rating-item">
+                  <div class="rating-label">
+                    <span class="item-name">付款账期条件</span>
+                    <span class="item-desc">结算方式灵活性、账期政策、资金合作友好度</span>
+                  </div>
+                  <div class="star-rating" data-field="payment">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 维度四：交付履约 -->
+            <div class="rating-dimension">
+              <div class="dimension-header" data-dimension="delivery">
+                <span class="dimension-icon">🚚</span>
+                <span class="dimension-name">交付履约</span>
+                <span class="dimension-score" id="score_delivery">—</span>
+                <span class="dimension-toggle">▼</span>
+              </div>
+              <div class="dimension-body">
+                <div class="rating-item">
+                  <div class="rating-label">
+                    <span class="item-name">交期保障能力</span>
+                    <span class="item-desc">订单准时交付率、排单规划、延期预警、加急单处理能力</span>
+                  </div>
+                  <div class="star-rating" data-field="deliveryTime">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                  </div>
+                </div>
+                <div class="rating-item">
+                  <div class="rating-label">
+                    <span class="item-name">物流仓储配套</span>
+                    <span class="item-desc">发货时效、仓储备货、运输损耗管控</span>
+                  </div>
+                  <div class="star-rating" data-field="logistics">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 维度五：售后与长期运维 -->
+            <div class="rating-dimension">
+              <div class="dimension-header" data-dimension="service">
+                <span class="dimension-icon">🛠️</span>
+                <span class="dimension-name">售后与长期运维</span>
+                <span class="dimension-score" id="score_service">—</span>
+                <span class="dimension-toggle">▼</span>
+              </div>
+              <div class="dimension-body">
+                <div class="rating-item">
+                  <div class="rating-label">
+                    <span class="item-name">问题处置能力</span>
+                    <span class="item-desc">异常反馈响应、售后排查、返工补货、纠纷处理效率</span>
+                  </div>
+                  <div class="star-rating" data-field="afterSales">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3 class="section-title">关联项目</h3>
+          <div class="form-group full-width">
+            <input type="text" id="formProjects" placeholder="多个项目用逗号分隔，如：项目A, 项目B">
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3 class="section-title">阶梯报价 <button type="button" class="btn btn-sm btn-ghost" id="btnAddTier">+ 添加阶梯</button></h3>
+          <div id="tierContainer">
+            <div class="tier-row">
+              <div class="form-group tier-moq">
+                <label>MOQ (件)</label>
+                <input type="number" name="tierMoq" min="1" placeholder="起订量">
+              </div>
+              <div class="form-group tier-price">
+                <label>单价 (¥)</label>
+                <input type="number" name="tierPrice" min="0" step="0.01" placeholder="单价">
+              </div>
+              <button type="button" class="btn btn-icon btn-danger tier-remove" title="删除此阶梯" style="visibility:hidden;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3 class="section-title">备注</h3>
+          <div class="form-group full-width">
+            <textarea id="formNotes" rows="3" placeholder="其他补充信息，如交期、付款方式等"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" id="btnCancel">取消</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmit">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast 通知 -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
